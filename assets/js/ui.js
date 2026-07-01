@@ -110,25 +110,59 @@ function showGalaxySidebar(galaxy) {
 
 /**
  * Populate and reveal the sidebar with a website/planet's full details.
- * Premium version: favicon logo, status badge, country, ripple button.
- * @param {object} site - website data (+ relatedWebsites) from
- *   planetManager.js's onClick callback, matching websites.json's format.
+ * Premium version (11A+11B): favicon logo, status, country, ripple button,
+ * favicon-card related websites, GSAP stagger on stats cards, fade transition
+ * when switching between planets.
  */
 function showPlanetSidebar(site) {
   const content = $("sidebar-content");
   if (!content) return;
 
-  const visitors = formatVisitors(site.visitors);
-  const founded = site.founded ?? "—";
-  const country = site.country ?? "—";
+  const sidebar = $("sidebar");
+  const isAlreadyOpen = sidebar && !sidebar.hasAttribute("hidden");
 
-  // Phase 10: use hyperlane graph as authoritative connection list
+  // If sidebar is already open → fade content out, swap, fade back in.
+  // If sidebar is closed → just inject and open normally.
+  if (isAlreadyOpen) {
+    gsap.to(content, {
+      opacity: 0,
+      y: -8,
+      filter: "blur(4px)",
+      duration: 0.18,
+      ease: "power1.in",
+      onComplete: () => {
+        _injectPlanetContent(site, content);
+        gsap.fromTo(content,
+          { opacity: 0, y: 10, filter: "blur(4px)" },
+          { opacity: 1, y: 0, filter: "blur(0px)", duration: 0.28, ease: "power2.out",
+            onComplete: () => _animateStatsCards(content) }
+        );
+      },
+    });
+  } else {
+    _injectPlanetContent(site, content);
+    openSidebar();
+    // Stats cards stagger after sidebar slides in
+    gsap.delayedCall(0.45, () => _animateStatsCards(content));
+  }
+}
+
+/** Build and inject all sidebar HTML for a given site — pure DOM, no animation */
+function _injectPlanetContent(site, content) {
+  const visitors      = formatVisitors(site.visitors);
+  const founded       = site.founded ?? "—";
+  const country       = site.country ?? "—";
+  const accentColor   = site.color ?? "#5b8cff";
+  const accentAlpha   = accentColor + "33";
+  const faviconUrl    = buildFaviconUrl(site);
+
+  // Related: prefer live hyperlane graph, fallback to relatedWebsites
   const hyperlaneConnections = ctx.hyperlaneNetwork?.getConnectionsForSite(site.id) ?? [];
   const related = hyperlaneConnections.length > 0
     ? hyperlaneConnections
     : (Array.isArray(site.relatedWebsites) ? site.relatedWebsites : []);
 
-  // Group by category for badge summary
+  // Category badge summary
   const categoryCount = related.reduce((acc, r) => {
     const cat = capitalize(r.category ?? "other");
     acc[cat] = (acc[cat] ?? 0) + 1;
@@ -137,11 +171,6 @@ function showPlanetSidebar(site) {
   const categoryBadges = Object.entries(categoryCount)
     .map(([cat, n]) => `<span class="sidebar-conn-badge">${escapeHTML(cat)} (${n})</span>`)
     .join(" ");
-
-  // Build favicon URL — try site's own logo field, fallback to Google favicon service
-  const faviconUrl = buildFaviconUrl(site);
-  const accentColor = site.color ?? "#5b8cff";
-  const accentColorAlpha = accentColor + "33";
 
   content.innerHTML = `
     <!-- ── HEADER ─────────────────────────────────────────── -->
@@ -159,7 +188,7 @@ function showPlanetSidebar(site) {
       <div class="sidebar-header-info">
         <h2 class="sidebar-title-premium">${escapeHTML(site.name)}</h2>
         <div class="sidebar-header-meta">
-          <span class="sidebar-category-badge" style="color:${accentColor}; border-color:${accentColor}44; background:${accentColorAlpha};">
+          <span class="sidebar-category-badge" style="color:${accentColor}; border-color:${accentColor}44; background:${accentAlpha};">
             ${escapeHTML(capitalize(site.category))}
           </span>
           <span class="sidebar-status-dot"></span>
@@ -180,30 +209,30 @@ function showPlanetSidebar(site) {
     <!-- ── DESCRIPTION ───────────────────────────────────────── -->
     <p class="sidebar-description-premium">${escapeHTML(site.description || "")}</p>
 
-    <!-- ── META GRID ─────────────────────────────────────────── -->
-    <div class="sidebar-meta-grid">
-      <div class="sidebar-meta-card">
+    <!-- ── STATS CARDS (animated with GSAP stagger after inject) ── -->
+    <div class="sidebar-meta-grid" id="sidebar-stats-grid">
+      <div class="sidebar-meta-card" data-stat>
+        <span class="sidebar-meta-icon">👥</span>
+        <div class="sidebar-meta-card-inner">
+          <dt class="sidebar-meta-label">Monthly Visitors</dt>
+          <dd class="sidebar-meta-value">${escapeHTML(visitors)}</dd>
+        </div>
+      </div>
+      <div class="sidebar-meta-card" data-stat>
         <span class="sidebar-meta-icon">🏢</span>
         <div class="sidebar-meta-card-inner">
           <dt class="sidebar-meta-label">Owner</dt>
           <dd class="sidebar-meta-value">${escapeHTML(site.owner || "—")}</dd>
         </div>
       </div>
-      <div class="sidebar-meta-card">
+      <div class="sidebar-meta-card" data-stat>
         <span class="sidebar-meta-icon">📅</span>
         <div class="sidebar-meta-card-inner">
           <dt class="sidebar-meta-label">Founded</dt>
           <dd class="sidebar-meta-value">${escapeHTML(String(founded))}</dd>
         </div>
       </div>
-      <div class="sidebar-meta-card">
-        <span class="sidebar-meta-icon">👥</span>
-        <div class="sidebar-meta-card-inner">
-          <dt class="sidebar-meta-label">Visitors</dt>
-          <dd class="sidebar-meta-value">${escapeHTML(visitors)}</dd>
-        </div>
-      </div>
-      <div class="sidebar-meta-card">
+      <div class="sidebar-meta-card" data-stat>
         <span class="sidebar-meta-icon">🌏</span>
         <div class="sidebar-meta-card-inner">
           <dt class="sidebar-meta-label">Country</dt>
@@ -212,7 +241,7 @@ function showPlanetSidebar(site) {
       </div>
     </div>
 
-    <!-- ── CONNECTED WEBSITES ────────────────────────────────── -->
+    <!-- ── CONNECTED WEBSITES (premium favicon cards) ────────── -->
     ${related.length > 0 ? `
     <div class="sidebar-related-premium">
       <div class="sidebar-related-header">
@@ -221,18 +250,42 @@ function showPlanetSidebar(site) {
       </div>
       ${categoryBadges ? `<div class="sidebar-conn-categories">${categoryBadges}</div>` : ""}
       <ul class="sidebar-related-list-premium">
-        ${related.map((r) => `
+        ${related.map((r) => {
+          const rFavicon = buildFaviconUrl(r);
+          const rColor   = r.color ?? "#5b8cff";
+          return `
           <li>
-            <button type="button" class="sidebar-conn-item-premium" data-fly-to="${escapeAttr(r.id)}">
-              <span class="sidebar-conn-dot-premium" style="background:${r.color ?? "#5b8cff"}; box-shadow: 0 0 6px ${r.color ?? "#5b8cff"}88;"></span>
-              <span class="sidebar-conn-name">${escapeHTML(r.name)}</span>
-              <span class="sidebar-conn-cat">${escapeHTML(capitalize(r.category))}</span>
+            <button type="button"
+              class="sidebar-conn-item-premium"
+              data-fly-to="${escapeAttr(r.id)}"
+              style="--conn-color:${rColor};"
+            >
+              <span class="sidebar-conn-favicon-wrap">
+                ${rFavicon
+                  ? `<img
+                       class="sidebar-conn-favicon-img"
+                       src="${escapeAttr(rFavicon)}"
+                       alt=""
+                       loading="lazy"
+                       onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"
+                     />
+                     <span class="sidebar-conn-favicon-fallback"
+                       style="display:none; color:#fff; background:${rColor}; width:100%; height:100%; align-items:center; justify-content:center; border-radius:7px;">
+                       ${escapeHTML((r.name || "?").charAt(0).toUpperCase())}
+                     </span>`
+                  : `<span class="sidebar-conn-dot-premium" style="background:${rColor}; box-shadow:0 0 6px ${rColor}88;"></span>`
+                }
+              </span>
+              <span class="sidebar-conn-text">
+                <span class="sidebar-conn-name">${escapeHTML(r.name)}</span>
+                <span class="sidebar-conn-cat">${escapeHTML(capitalize(r.category))}</span>
+              </span>
               <svg class="sidebar-conn-arrow" width="12" height="12" viewBox="0 0 12 12" fill="none">
                 <path d="M2 6h8M6 2l4 4-4 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
               </svg>
             </button>
-          </li>
-        `).join("")}
+          </li>`;
+        }).join("")}
       </ul>
     </div>` : ""}
 
@@ -252,7 +305,7 @@ function showPlanetSidebar(site) {
     </a>
   `;
 
-  // Wire up "click name → camera fly" for connected websites (Phase 10)
+  // Wire up connected website click → cinematic fly + sidebar swap
   content.querySelectorAll("[data-fly-to]").forEach((btn) => {
     btn.addEventListener("click", () => {
       const targetSite = ctx.planetManager?.getPlanetById(btn.dataset.flyTo)?.data;
@@ -260,24 +313,35 @@ function showPlanetSidebar(site) {
     });
   });
 
-  // Ripple effect on visit button
+  // Ripple on visit button
   const visitBtn = content.querySelector(".sidebar-visit-btn-premium");
   if (visitBtn) {
     visitBtn.addEventListener("click", (e) => {
       const ripple = visitBtn.querySelector(".sidebar-visit-ripple");
       if (!ripple) return;
       const rect = visitBtn.getBoundingClientRect();
-      const x = e.clientX - rect.left;
-      const y = e.clientY - rect.top;
-      ripple.style.left = x + "px";
-      ripple.style.top = y + "px";
+      ripple.style.left = (e.clientX - rect.left) + "px";
+      ripple.style.top  = (e.clientY - rect.top) + "px";
       ripple.classList.remove("is-active");
-      void ripple.offsetWidth; // reflow to restart animation
+      void ripple.offsetWidth;
       ripple.classList.add("is-active");
     });
   }
+}
 
-  openSidebar();
+/** GSAP stagger animation for the 4 stats cards — runs after content is visible */
+function _animateStatsCards(content) {
+  const cards = content.querySelectorAll("[data-stat]");
+  if (!cards.length) return;
+  gsap.fromTo(cards,
+    { opacity: 0, y: 12, scale: 0.94 },
+    {
+      opacity: 1, y: 0, scale: 1,
+      duration: 0.32,
+      stagger: 0.065,
+      ease: "back.out(1.4)",
+    }
+  );
 }
 
 /** Build a favicon/logo URL for the given site.
@@ -638,15 +702,18 @@ function focusOnSite(site) {
 
   ctx.planetManager.focusPlanet(site.id);
   ctx.galaxySystem?.setFocusCategory(site.category);
-  // Phase 10: light up this planet's hyperlane connections with a cascade
-  // stagger so they ignite one-by-one as the camera flies in (cinematic).
+  // Light up connected hyperlanes with cascade stagger (cinematic fly-in feel)
   ctx.hyperlaneNetwork?.highlightForPlanet(site.id, { cascade: true });
   activateFocusOverlay();
   showFocusLabel(site);
 
+  // Hide tooltip immediately on intentional navigation
+  hideTooltip();
+
   ctx.visitPlanet?.(planet, {
     onComplete: () => {
       const relatedWebsites = resolveRelatedWebsites(site);
+      // showPlanetSidebar handles fade-transition if sidebar already open
       showPlanetSidebar({ ...site, relatedWebsites });
     },
   });
@@ -733,20 +800,58 @@ function initTooltip() {
   tooltipQuickToY = gsap.quickTo(tooltip, "y", { duration: 0.25, ease: "power3.out" });
 }
 
-/** Move + populate the tooltip; called every pointermove while hovering */
+/** Move + populate the premium tooltip; called every pointermove while hovering.
+ *  Favicon is loaded from Google's service for instant display without flash.
+ *  Fade+scale+blur entrance runs only on the first appearance per-planet. */
 function showTooltip(site, event) {
   const tooltip = $("planet-tooltip");
   if (!tooltip || !site) return;
 
-  $("tooltip-name").textContent = site.name;
-  $("tooltip-category").textContent = capitalize(site.category);
-  $("tooltip-visitors").textContent = formatVisitors(site.visitors);
+  // Populate text
+  const nameEl   = $("tooltip-name");
+  const catEl    = $("tooltip-category");
+  const visEl    = $("tooltip-visitors");
+  if (nameEl) nameEl.textContent = site.name;
+  if (catEl)  catEl.textContent  = capitalize(site.category);
+  if (visEl)  visEl.textContent  = formatVisitors(site.visitors);
+
+  // Populate logo: img → letter fallback → color dot
+  const imgEl      = $("tooltip-logo-img");
+  const fallbackEl = $("tooltip-logo-fallback");
+  const dotEl      = $("tooltip-color-dot");
+  const faviconUrl = buildFaviconUrl(site);
+
+  if (imgEl && fallbackEl && dotEl) {
+    if (faviconUrl) {
+      imgEl.src = faviconUrl;
+      imgEl.style.display = "block";
+      fallbackEl.style.display = "none";
+      dotEl.style.display = "none";
+      imgEl.onerror = () => {
+        imgEl.style.display = "none";
+        // Letter fallback
+        const letter = (site.name || "?").charAt(0).toUpperCase();
+        fallbackEl.textContent = letter;
+        fallbackEl.style.display = "flex";
+        dotEl.style.display = "none";
+      };
+    } else {
+      imgEl.style.display = "none";
+      fallbackEl.style.display = "none";
+      dotEl.style.display = "block";
+      dotEl.style.background = site.color ?? "#5b8cff";
+    }
+  }
 
   if (tooltip.hidden) {
     tooltip.hidden = false;
-    // Snap to position instantly on first appearance (no slide-in lag),
-    // then subsequent moves glide smoothly via the quickTo tweens above.
+    // Snap to position first so it doesn't slide in from (0,0)
     gsap.set(tooltip, { x: event.clientX, y: event.clientY });
+    // Premium entrance: fade + scale up from 0.85 + blur out
+    gsap.fromTo(tooltip,
+      { opacity: 0, scale: 0.85, filter: "blur(6px)" },
+      { opacity: 1, scale: 1, filter: "blur(0px)", duration: 0.22, ease: "back.out(1.6)" }
+    );
   }
 
   tooltipQuickToX?.(event.clientX);
@@ -755,7 +860,19 @@ function showTooltip(site, event) {
 
 function hideTooltip() {
   const tooltip = $("planet-tooltip");
-  if (tooltip) tooltip.hidden = true;
+  if (!tooltip || tooltip.hidden) return;
+  // Smooth fade+scale out
+  gsap.to(tooltip, {
+    opacity: 0,
+    scale: 0.88,
+    filter: "blur(4px)",
+    duration: 0.15,
+    ease: "power1.in",
+    onComplete: () => {
+      tooltip.hidden = true;
+      gsap.set(tooltip, { opacity: 1, scale: 1, filter: "blur(0px)" });
+    },
+  });
 }
 
 /* ==========================================================================
@@ -776,11 +893,11 @@ export function handlePlanetHover(planet, event) {
 export function handlePlanetClick(planet, siteWithRelated) {
   if (planet && siteWithRelated) {
     ctx.galaxySystem?.setFocusCategory(siteWithRelated.category);
-    // Phase 10: instant highlight (no cascade) for direct clicks — the user
-    // is already at the planet, so the lanes should snap on immediately.
+    // Instant highlight for direct clicks — user is already at the planet
     ctx.hyperlaneNetwork?.highlightForPlanet(siteWithRelated.id, { cascade: false });
     activateFocusOverlay();
     showFocusLabel(siteWithRelated);
+    // showPlanetSidebar handles fade-out/in transition if sidebar already open
     showPlanetSidebar(siteWithRelated);
   } else {
     ctx.galaxySystem?.setFocusCategory(null);

@@ -120,14 +120,21 @@
       </div>
     </aside>
 
-    <!-- Planet hover tooltip — follows the mouse, shows name/category/visitors -->
+    <!-- Planet hover tooltip — follows the mouse, shows logo/name/category/visitors -->
     <div id="planet-tooltip" role="tooltip" hidden>
-      <span id="tooltip-name"></span>
-      <span id="tooltip-meta">
-        <span id="tooltip-category"></span>
-        <span id="tooltip-dot">•</span>
-        <span id="tooltip-visitors"></span>
-      </span>
+      <div id="tooltip-logo-wrap">
+        <img id="tooltip-logo-img" src="" alt="" aria-hidden="true" />
+        <span id="tooltip-logo-fallback" aria-hidden="true"></span>
+        <span id="tooltip-color-dot" aria-hidden="true"></span>
+      </div>
+      <div id="tooltip-body">
+        <span id="tooltip-name"></span>
+        <span id="tooltip-meta">
+          <span id="tooltip-category"></span>
+          <span id="tooltip-dot">•</span>
+          <span id="tooltip-visitors"></span>
+        </span>
+      </div>
     </div>
 
     <!-- Hyperlane hover tooltip (Phase 10) — "Source ➜ Target" label -->

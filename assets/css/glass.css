@@ -188,26 +188,75 @@
   box-shadow: inset 0 0 0 1px var(--color-glass-border);
 }
 
-/* ---- Planet hover tooltip (assets/js/ui.js drives its position via
-   GSAP's quickTo, which animates a CSS transform — so the element must
-   sit at a fixed left:0/top:0 origin and let `transform: translate(x, y)`
-   do all the positioning). Shows name / category / visitors. ---- */
+/* ---- Planet hover tooltip — Premium glassmorphism, follows mouse via
+   GSAP quickTo (left:0/top:0 + transform). Shows logo/name/category/visitors.
+   Fade+scale+blur entrance is driven by showTooltip() in ui.js. ---- */
 #planet-tooltip {
   position: fixed;
   left: 0;
   top: 0;
   z-index: var(--z-hud);
   display: flex;
-  flex-direction: column;
-  gap: 2px;
-  padding: 8px 14px;
-  border-radius: var(--radius-md);
-  background: var(--color-glass-bg);
-  border: 1px solid var(--color-glass-border);
-  backdrop-filter: blur(var(--blur-glass));
-  -webkit-backdrop-filter: blur(var(--blur-glass));
+  flex-direction: row;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  border-radius: 14px;
+  background: rgba(10, 12, 22, 0.82);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(20px) saturate(160%);
+  -webkit-backdrop-filter: blur(20px) saturate(160%);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.45),
+              inset 0 1px 0 rgba(255,255,255,0.06);
   white-space: nowrap;
   pointer-events: none;
+  /* entrance animation resets set by JS */
+  transform-origin: center bottom;
+}
+
+/* Logo container inside tooltip */
+#tooltip-logo-wrap {
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  overflow: hidden;
+  background: var(--color-glass-highlight);
+  border: 1px solid var(--color-glass-border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+}
+
+#tooltip-logo-img {
+  width: 22px;
+  height: 22px;
+  object-fit: contain;
+  border-radius: 4px;
+  display: block;
+}
+
+#tooltip-logo-fallback {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 13px;
+  color: #fff;
+  display: none;
+}
+
+/* colored dot fallback for when both logo and letter fail */
+#tooltip-color-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  display: none;
+}
+
+#tooltip-body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
 }
 
 #tooltip-name {
@@ -215,18 +264,20 @@
   font-size: var(--fs-sm);
   font-weight: 600;
   color: var(--color-text-primary);
+  line-height: 1.2;
 }
 
 #tooltip-meta {
   display: flex;
   align-items: center;
-  gap: 6px;
-  font-size: var(--fs-xs);
+  gap: 5px;
+  font-size: 11px;
   color: var(--color-text-muted);
 }
 
 #tooltip-dot {
-  font-size: 8px;
+  font-size: 7px;
+  opacity: 0.5;
 }
 
 /* ==========================================================================
@@ -285,30 +336,122 @@
   color: var(--color-text-muted);
 }
 
-/* Clickable connected-website rows */
-.sidebar-conn-item {
+/* Clickable connected-website cards (Phase 11B upgrade) */
+.sidebar-conn-item-premium {
   display: flex;
   align-items: center;
-  gap: var(--space-sm);
+  gap: 10px;
   width: 100%;
   text-align: left;
-  padding: 5px 6px;
-  border-radius: var(--radius-sm);
-  transition: background var(--duration-fast) var(--ease-default);
+  padding: 9px 11px;
+  border-radius: var(--radius-md);
+  border: 1px solid transparent;
+  background: transparent;
+  cursor: pointer;
+  transition:
+    background var(--duration-fast) var(--ease-default),
+    border-color var(--duration-fast) var(--ease-default),
+    transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1),
+    box-shadow var(--duration-fast) var(--ease-default);
+  position: relative;
 }
 
-.sidebar-conn-item:hover {
+.sidebar-conn-item-premium:hover {
   background: var(--color-glass-highlight);
-  cursor: pointer;
+  border-color: var(--color-glass-border);
+  transform: translateX(3px) scale(1.015);
+  box-shadow: 0 2px 12px rgba(0,0,0,0.25);
+}
+
+/* Favicon mini logo inside connected card */
+.sidebar-conn-favicon-wrap {
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  border-radius: 7px;
+  background: var(--color-glass-highlight);
+  border: 1px solid var(--color-glass-border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  position: relative;
+}
+
+.sidebar-conn-favicon-img {
+  width: 18px;
+  height: 18px;
+  object-fit: contain;
+  border-radius: 3px;
+}
+
+.sidebar-conn-favicon-fallback {
+  font-size: 11px;
+  font-weight: 700;
+  font-family: var(--font-display);
+  color: #fff;
+  display: none;
+}
+
+.sidebar-conn-dot-premium {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  /* shown only when favicon fails entirely */
+}
+
+.sidebar-conn-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
 }
 
 .sidebar-conn-name {
   font-size: var(--fs-sm);
   color: var(--color-text-primary);
-  flex: 1;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .sidebar-conn-cat {
-  font-size: var(--fs-xs);
+  font-size: 10px;
   color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.sidebar-conn-arrow {
+  margin-left: auto;
+  color: var(--color-text-muted);
+  opacity: 0;
+  transition: opacity var(--duration-fast), transform var(--duration-fast);
+  flex-shrink: 0;
+}
+
+.sidebar-conn-item-premium:hover .sidebar-conn-arrow {
+  opacity: 1;
+  transform: translateX(2px);
+}
+
+/* Glow line on the left edge — color from --conn-color CSS var set inline */
+.sidebar-conn-item-premium::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 20%;
+  bottom: 20%;
+  width: 2px;
+  border-radius: 2px;
+  background: var(--conn-color, transparent);
+  opacity: 0;
+  transition: opacity var(--duration-fast);
+}
+
+.sidebar-conn-item-premium:hover::before {
+  opacity: 1;
 }

@@ -430,42 +430,7 @@
   gap: 4px;
 }
 
-.sidebar-conn-item-premium {
-  display: flex;
-  align-items: center;
-  gap: var(--space-sm);
-  width: 100%;
-  text-align: left;
-  padding: 8px 10px;
-  border-radius: var(--radius-md);
-  border: 1px solid transparent;
-  transition: background var(--duration-fast), border-color var(--duration-fast);
-  cursor: pointer;
-}
-
-.sidebar-conn-item-premium:hover {
-  background: var(--color-glass-highlight);
-  border-color: var(--color-glass-border);
-}
-
-.sidebar-conn-dot-premium {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  flex-shrink: 0;
-}
-
-.sidebar-conn-arrow {
-  margin-left: auto;
-  color: var(--color-text-muted);
-  opacity: 0;
-  transition: opacity var(--duration-fast);
-  flex-shrink: 0;
-}
-
-.sidebar-conn-item-premium:hover .sidebar-conn-arrow {
-  opacity: 1;
-}
+/* .sidebar-conn-item-premium and children — defined in glass.css (Phase 11B) */
 
 /* ── VISIT BUTTON PREMIUM ────────────────────────────────────────────────── */
 .sidebar-visit-btn-premium {
