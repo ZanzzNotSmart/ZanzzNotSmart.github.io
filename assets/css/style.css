@@ -1,11 +1,30 @@
 /* ==========================================================================
-   NEXUS — Stylesheet Entry Point
-   File ini hanya mengimpor modul CSS lain secara berurutan.
-   Urutan penting: variables → layout → animation → responsive.
-   Jangan menulis rule langsung di file ini, taruh di modul yang sesuai.
+   NEXUS — Base / Reset
+   Reset dasar & style html/body. Modul lain (variables, layout, animation,
+   responsive) di-load langsung lewat <link> terpisah di index.html
+   (bukan lewat @import) supaya semua file diambil paralel oleh browser
+   dan tidak ada risiko chain @import gagal dimuat di hosting statis
+   seperti GitHub Pages.
+   Urutan <link> di index.html WAJIB: variables → style → layout → animation → responsive.
    ========================================================================== */
 
-@import url('variables.css');
-@import url('layout.css');
-@import url('animation.css');
-@import url('responsive.css');
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+/* Background gelap didefinisikan juga di sini (selain critical CSS inline
+   di index.html) sebagai lapisan pertahanan kedua — memastikan halaman
+   tidak pernah tampil putih meski salah satu file CSS lain gagal dimuat. */
+body {
+  background: var(--bg-void, #08080d);
+  color: var(--text-primary, #f5f5fb);
+  font-family: var(--font-body, 'Inter', sans-serif);
+  overflow-x: hidden;
+  min-height: 100vh;
+}

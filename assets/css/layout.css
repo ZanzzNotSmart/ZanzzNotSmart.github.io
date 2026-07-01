@@ -1,25 +1,9 @@
 /* ==========================================================================
    NEXUS — Layout
    Struktur utama halaman: canvas 3D full-screen, hero section, glass panel.
+   Reset dasar & style body ada di style.css (base.css tidak dipisah agar
+   tetap sesuai struktur project yang diminta).
    ========================================================================== */
-
-* {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
-}
-
-html {
-  scroll-behavior: smooth;
-}
-
-body {
-  background: var(--bg-void);
-  color: var(--text-primary);
-  font-family: var(--font-body);
-  overflow-x: hidden;
-  min-height: 100vh;
-}
 
 /* ---------- Canvas Three.js (latar belakang scene) ---------- */
 #nexus-canvas {

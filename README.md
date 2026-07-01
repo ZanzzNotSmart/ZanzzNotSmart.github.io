@@ -12,6 +12,24 @@ setup Three.js dasar (scene, camera, renderer, OrbitControls) dan
 konfigurasi GSAP awal. Belum ada object 3D atau animasi besar — struktur
 ini dirancang agar mudah dikembangkan pada prompt-prompt berikutnya.
 
+### Catatan perbaikan (bug fix pass)
+
+Foundation ini sudah melalui satu putaran perbaikan untuk memastikan
+**0 error di console** dan background tidak pernah tampil putih:
+
+- Semua akses DOM di `ui.js` sekarang lewat helper `safeQuery()` yang
+  null-check otomatis + `console.warn` jika elemen tidak ditemukan —
+  tidak ada lagi kemungkinan `Cannot set properties of null`.
+- `main.js` dibungkus dalam `bootstrap()` yang dijalankan setelah
+  `DOMContentLoaded`, dengan `try/catch` di setiap tahap dan
+  `window.addEventListener('error', ...)` sebagai jaring pengaman global.
+- CSS tidak lagi memakai `@import` berantai di `style.css`. Setiap file
+  CSS (`variables.css`, `style.css`, `layout.css`, `animation.css`,
+  `responsive.css`) sekarang di-`<link>` langsung di `index.html` secara
+  paralel, plus ada **critical CSS inline** di `<head>` sebagai lapisan
+  pertahanan pertama supaya background selalu gelap premium sejak render
+  pertama.
+
 ## Struktur Project
 
 ```

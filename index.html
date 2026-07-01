@@ -14,8 +14,30 @@
     rel="stylesheet"
   />
 
-  <!-- ============ Stylesheet (entry point) ============ -->
+  <!-- ============ Critical CSS (fallback) ============ -->
+  <!-- Lapisan pertahanan pertama: memastikan background tetap gelap premium
+       sejak render pertama, bahkan sebelum/jika file CSS eksternal di bawah
+       gagal atau telat dimuat. Nilai warna sengaja di-hardcode (bukan var())
+       karena file variables.css belum tentu sudah aktif di titik ini. -->
+  <style>
+    html, body {
+      background-color: #08080d;
+      color: #f5f5fb;
+      margin: 0;
+      min-height: 100vh;
+    }
+  </style>
+
+  <!-- ============ Stylesheet ============ -->
+  <!-- Di-load sebagai <link> terpisah (bukan @import berantai di dalam
+       style.css) supaya browser bisa mengambil semua file secara paralel
+       dan lebih tahan terhadap kegagalan satu file di hosting statis
+       seperti GitHub Pages. Urutan ini WAJIB dijaga. -->
+  <link rel="stylesheet" href="assets/css/variables.css" />
   <link rel="stylesheet" href="assets/css/style.css" />
+  <link rel="stylesheet" href="assets/css/layout.css" />
+  <link rel="stylesheet" href="assets/css/animation.css" />
+  <link rel="stylesheet" href="assets/css/responsive.css" />
 
   <!-- ============ Import Map: Three.js & GSAP via CDN (tanpa build tools) ============ -->
   <script type="importmap">
