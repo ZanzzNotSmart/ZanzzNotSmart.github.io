@@ -225,6 +225,21 @@
     </div>
   </section>
 
+  <!--
+    ============ Hierarki Section (Prompt 5.6 — Architecture Fix) ============
+    Satu halaman scroll tunggal, urutan WAJIB dijaga:
+      Hero  (di atas)
+        ↓
+      About (section ini, di atas)
+        ↓
+      Projects  ← akan ditambahkan pada Prompt 6, TEPAT setelah #about, SEBELUM script module di bawah.
+        ↓
+      Contact   ← akan ditambahkan setelah Projects.
+    Jangan pernah membuat section-section ini sebagai halaman terpisah (routing/multi-page) —
+    seluruh cinematic transition (Hero→About, kamera, dsb) dibangun dengan asumsi
+    satu dokumen scroll berkelanjutan.
+  -->
+
   <!-- ============ Entry Point JavaScript (ES Module) ============ -->
   <script type="module" src="assets/js/main.js"></script>
 </body>

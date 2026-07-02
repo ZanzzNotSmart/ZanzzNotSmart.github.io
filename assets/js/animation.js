@@ -31,6 +31,12 @@ export function initSmoothScroll() {
     duration: 1.05,
     easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
     smoothWheel: true,
+    syncTouch: true, // FIX (5.6): tanpa ini, scroll di layar sentuh (HP/tablet) TIDAK
+                      // di-smoothing oleh Lenis sama sekali — hanya scroll native browser
+                      // yang bentrok dengan ScrollTrigger.scrub, itulah sumber "scroll patah"
+                      // yang paling terasa di HP.
+    syncTouchLerp: 0.075, // sedikit lebih responsif dari default agar tetap terasa natural di jari.
+    touchMultiplier: 1.6,
     autoRaf: false, // WAJIB false — di-drive manual lewat gsap.ticker di bawah,
                      // dua rAF loop scroll berjalan bersamaan = penyebab patah-patah.
   });
@@ -80,46 +86,81 @@ export function scrollToSelector(selector, options = {}) {
   }
 }
 
-/** Progress 0→1 dari mulai masuk viewport #about — dipakai untuk transisi cinematic Hero→About. */
+/**
+ * Progress 0→1 selama Hero discroll keluar viewport — dipakai untuk transisi
+ * cinematic Hero→About (kamera turun, lighting berubah, dsb di main.js).
+ *
+ * FIX (5.6): trigger dipindah dari `#about` ke `.hero` sendiri. Sebelumnya
+ * progress dihitung dari posisi About ("top bottom" → "top top"), yang berarti
+ * kamera & hero fade baru bergerak SETELAH About mendekat — kalau tinggi About
+ * berubah (misal font lambat load / section berikutnya nanti ditambah), jarak
+ * scroll ini ikut bergeser dan transisi terasa telat/patah. Dengan trigger di
+ * `.hero`, progress selalu 0→1 tepat selama tinggi Hero itu sendiri di-scroll —
+ * konsisten berapa pun tinggi section-section di bawahnya.
+ */
 export function initSectionTransition(onProgress) {
-  const about = document.querySelector('#about');
-  if (!about) return null;
+  const hero = document.querySelector('.hero');
+  if (!hero) return null;
 
   return ScrollTrigger.create({
-    trigger: about,
-    start: 'top bottom',
-    end: 'top top',
+    trigger: hero,
+    start: 'top top',
+    end: 'bottom top',
     scrub: 1.2,
     onUpdate: (self) => onProgress(self.progress),
   });
 }
 
 /**
- * Hero mengecil & memudar secara halus saat user mulai scroll ke About.
- * Murni transform + opacity (GPU-friendly), di-scrub langsung oleh ScrollTrigger/Lenis.
+ * Hero mengecil, naik sedikit, & memudar secara halus saat user mulai scroll
+ * ke About. Murni transform + opacity (GPU-friendly), di-scrub langsung oleh
+ * ScrollTrigger/Lenis — DIKUNCI ke trigger yang sama (`.hero`) dengan
+ * initSectionTransition di atas supaya fade Hero & pergerakan kamera SELALU
+ * sinkron satu sama lain (ini yang membuat transisi terasa "satu halaman yang
+ * bergerak", bukan berpindah halaman).
  */
 export function initHeroScrollTransition() {
   const panel = document.querySelector('.hero__panel');
-  const about = document.querySelector('#about');
-  if (!panel || !about) return;
+  const hero = document.querySelector('.hero');
+  if (!panel || !hero) return;
 
-  gsap.set(panel, { transformOrigin: 'center' });
+  gsap.set(panel, { transformOrigin: 'center', willChange: 'transform, opacity, filter' });
 
   gsap.to(panel, {
-    scale: 0.8,
-    opacity: 0.22, // tetap sedikit terlihat, tidak langsung hilang
-    filter: 'blur(4px)',
+    scale: 0.82,
+    y: -60, // "naik sedikit" — sesuai requirement, hero bergerak ke atas selagi mengecil
+    opacity: 0.24, // tetap sedikit terlihat di bagian atas, tidak langsung hilang
+    filter: 'blur(3px)',
     ease: 'none',
     scrollTrigger: {
-      trigger: about,
-      start: 'top bottom',
-      end: 'top 45%',
+      trigger: hero,
+      start: 'top top',
+      end: 'bottom top',
       scrub: 1.2,
     },
   });
 }
 
-/** Reveal bertahap section About: opacity + translate + blur, stagger. */
+/**
+ * Reveal bertahap section About: opacity + translate + blur, stagger.
+ *
+ * FIX (5.6) — "About kadang tidak muncul": versi lama membuat tween `.from()`
+ * di dalam `gsap.timeline({ scrollTrigger: { once: true } })`. GSAP menghitung
+ * & MENERAPKAN nilai awal `.from()` (opacity:0, blur, dst) ke DOM secara
+ * INSTAN begitu timeline dibuat — sebelum ScrollTrigger-nya sempat aktif.
+ * Kalau posisi trigger meleset sedikit (layout belum stabil saat load, web
+ * font telat, dsb), animasi reveal tidak pernah jalan dan section itu
+ * TERTINGGAL di opacity:0 selamanya. Itulah sumber bug "About kadang tidak
+ * muncul".
+ *
+ * Perbaikan: timeline HANYA dibuat (dan opacity:0 baru diterapkan) pada saat
+ * IntersectionObserver benar-benar melaporkan About masuk viewport — bukan
+ * dihitung lebih dulu dari posisi scroll yang bisa meleset. Section tetap
+ * 100% terlihat (CSS default) sampai saat itu. Ditambah dua safety-net: (1)
+ * pengecekan ulang setelah `load` kalau-kalau observer belum sempat terpasang
+ * saat About sudah terlihat, (2) `clearProps` di akhir animasi supaya tidak
+ * ada inline style (opacity/transform/filter) yang bisa "nyangkut".
+ */
 export function initAboutReveal() {
   const about = document.querySelector('#about');
   if (!about) return;
@@ -127,17 +168,55 @@ export function initAboutReveal() {
   const leftEls = about.querySelectorAll(
     '.about__eyebrow, .about__title, .about__role, .about__desc, .about__focus, .tech-stack, .about__buttons .btn'
   );
+  const cardEl = about.querySelector('.about__card');
   const statEls = about.querySelectorAll('.stat-card');
+  const allEls = [...leftEls, cardEl, ...statEls].filter(Boolean);
 
-  gsap
-    .timeline({ scrollTrigger: { trigger: about, start: 'top 70%', once: true } })
-    .from(leftEls, { opacity: 0, y: 32, filter: 'blur(10px)', duration: 1, stagger: 0.12, ease: 'power3.out' })
-    .from(
-      '.about__card',
-      { opacity: 0, y: 40, scale: 0.94, filter: 'blur(14px)', duration: 1.2, ease: 'power3.out' },
-      '-=0.7'
-    )
-    .from(statEls, { opacity: 0, y: 24, duration: 0.8, stagger: 0.1, ease: 'power3.out' }, '-=0.6');
+  let revealed = false;
+
+  function reveal() {
+    if (revealed) return;
+    revealed = true;
+
+    gsap
+      .timeline({
+        onComplete: () => gsap.set(allEls, { clearProps: 'opacity,transform,filter,willChange' }),
+      })
+      .from(leftEls, { opacity: 0, y: 32, filter: 'blur(10px)', duration: 1, stagger: 0.12, ease: 'power3.out' })
+      .from(
+        cardEl,
+        { opacity: 0, y: 40, scale: 0.94, filter: 'blur(14px)', duration: 1.2, ease: 'power3.out' },
+        '-=0.7'
+      )
+      .from(statEls, { opacity: 0, y: 24, duration: 0.8, stagger: 0.1, ease: 'power3.out' }, '-=0.6');
+  }
+
+  if ('IntersectionObserver' in window) {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            reveal();
+            observer.disconnect();
+          }
+        });
+      },
+      { threshold: 0.15, rootMargin: '0px 0px -10% 0px' }
+    );
+    observer.observe(about);
+  } else {
+    // Browser tanpa dukungan IntersectionObserver — langsung tampilkan tanpa animasi reveal.
+    reveal();
+  }
+
+  // Safety-net: kalau di titik ini About sudah (atau ternyata) terlihat di
+  // viewport tapi observer belum sempat menembak (edge-case halaman pendek /
+  // reload di posisi scroll tertentu), paksa reveal supaya tidak pernah stuck.
+  window.addEventListener('load', () => {
+    const rect = about.getBoundingClientRect();
+    const inViewport = rect.top < window.innerHeight && rect.bottom > 0;
+    if (inViewport) reveal();
+  });
 }
 
 /**
@@ -210,23 +289,30 @@ export function initTiltCard(selector) {
 }
 
 /**
- * Fly-bump kamera kecil saat tombol Explore diklik.
+ * Fly-bump kamera halus saat tombol Explore diklik — dorongan kecil kamera
+ * ke depan yang menyatu dengan scroll otomatis ke About.
+ *
+ * FIX (5.6): versi lama "menyodok" kamera dalam 0.22s lalu kembali dalam
+ * 0.45s (total ~0.67s, ease power2.out/power3.inOut yang tajam di ujung
+ * awal) — terasa seperti sentakan/teleport kecil, bukan gerakan kamera yang
+ * halus. Sekarang satu tween tunggal, ease-in-out penuh, durasi di dalam
+ * rentang yang diminta (0.8–1.2s), jadi dorongannya menyatu dengan
+ * scrollToSelector (yang juga berjalan ~1.4s) tanpa terasa dua gerakan
+ * terpisah.
  * @param {THREE.PerspectiveCamera} camera
  * @param {{impulseZ:number}} rigState
  */
 export function cameraFlyBump(camera, rigState) {
+  const baseFov = camera.fov;
+  const TOTAL = 1; // detik — total gerak maju + kembali, sesuai rentang 0.8–1.2s yang diminta.
+
   gsap
-    .timeline()
-    .to(rigState, { impulseZ: -0.5, duration: 0.22, ease: 'power2.out', overwrite: true })
-    .to(rigState, { impulseZ: 0, duration: 0.45, ease: 'power3.inOut' })
-    .to(
-      camera,
-      { fov: camera.fov - 3, duration: 0.22, ease: 'power2.out', onUpdate: () => camera.updateProjectionMatrix() },
-      0
-    )
-    .to(
-      camera,
-      { fov: camera.fov, duration: 0.45, ease: 'power3.inOut', onUpdate: () => camera.updateProjectionMatrix() },
-      0.22
-    );
+    .timeline({ defaults: { ease: 'power2.inOut', overwrite: true } })
+    .to(rigState, { impulseZ: -0.32, duration: TOTAL / 2 })
+    .to(rigState, { impulseZ: 0, duration: TOTAL / 2 });
+
+  gsap
+    .timeline({ defaults: { ease: 'power2.inOut', onUpdate: () => camera.updateProjectionMatrix() } })
+    .to(camera, { fov: baseFov - 1.6, duration: TOTAL / 2 })
+    .to(camera, { fov: baseFov, duration: TOTAL / 2 });
 }

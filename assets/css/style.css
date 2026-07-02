@@ -18,6 +18,12 @@ html {
   /* scroll-behavior TIDAK diset ke smooth di sini — Lenis (animation.js)
      mengambil alih smooth scroll sepenuhnya. Mengaktifkan keduanya
      menyebabkan dua sistem scroll saling tarik dan terasa patah-patah. */
+
+  /* FIX (5.6): matikan overscroll/rubber-band bounce browser native (terutama
+     terasa di Safari/iOS & scroll-mouse tertentu di desktop) — bounce native
+     ini berjalan di luar kendali Lenis/ScrollTrigger dan salah satu penyebab
+     scroll terasa "patah" tepat di ujung atas/bawah halaman. */
+  overscroll-behavior-y: none;
 }
 
 /* Background gelap didefinisikan juga di sini (selain critical CSS inline
@@ -29,4 +35,5 @@ body {
   font-family: var(--font-body, 'Inter', sans-serif);
   overflow-x: hidden;
   min-height: 100vh;
+  overscroll-behavior-y: none;
 }

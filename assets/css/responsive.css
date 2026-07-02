@@ -41,6 +41,11 @@
   .cursor-glow {
     display: none; /* efek dekoratif halus dimatikan di layar sentuh/tablet demi performa */
   }
+
+  /* FIX (5.6): blur 60px pada dua blob besar cukup berat di GPU tablet — turunkan tanpa menghilangkan efeknya. */
+  .about__blob {
+    filter: blur(38px);
+  }
 }
 
 /* ---------- Mobile ---------- */
@@ -113,6 +118,23 @@
   .about__bg-label,
   .floating-el {
     display: none; /* dekorasi murni, dimatikan di layar kecil demi performa & kerapian */
+  }
+
+  /* ============================================================
+     FIX (5.6) — Performance pass: backdrop-filter (blur) adalah salah
+     satu operasi paling mahal untuk GPU mobile, apalagi dua panel besar
+     (hero__panel & about__card) yang terus aktif selama scroll. Diperkecil
+     signifikan di HP, bukan dihilangkan (desain glass tetap terasa).
+     ============================================================ */
+  .hero__panel,
+  .about__card {
+    backdrop-filter: blur(6px) saturate(120%);
+    -webkit-backdrop-filter: blur(6px) saturate(120%);
+    box-shadow: 0 10px 24px -14px rgba(0, 0, 0, 0.4);
+  }
+
+  .about__card::after {
+    display: none; /* gradient border mask: repaint mahal, dampak visual minim di layar kecil */
   }
 }
 

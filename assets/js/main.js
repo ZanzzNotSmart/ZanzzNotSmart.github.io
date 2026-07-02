@@ -75,15 +75,26 @@ function bootstrap() {
 
   const { composer, resize: resizeEffects } = initEffects({ scene, camera, renderer });
 
-  // -- Resize --------------------------------------------------------------
+  // -- Resize ----------------------------------------------------------------
+  // FIX (5.6): di-throttle lewat rAF (bukan langsung per event resize) — resize
+  // event bisa menembak sangat sering (terutama drag resize window / rotate HP),
+  // dan setiap panggilan menyentuh renderer + composer (operasi berat). Dengan
+  // rAF-throttle, DOM/GPU update maksimal sekali per frame render, bukan setiap
+  // event resize mentah.
+  let resizeScheduled = false;
   function onResize() {
-    const w = window.innerWidth;
-    const h = window.innerHeight;
-    updateCameraOnResize(camera, w, h);
-    renderer.setSize(w, h);
-    resizeEffects(w, h);
+    if (resizeScheduled) return;
+    resizeScheduled = true;
+    requestAnimationFrame(() => {
+      const w = window.innerWidth;
+      const h = window.innerHeight;
+      updateCameraOnResize(camera, w, h);
+      renderer.setSize(w, h);
+      resizeEffects(w, h);
+      resizeScheduled = false;
+    });
   }
-  window.addEventListener('resize', onResize);
+  window.addEventListener('resize', onResize, { passive: true });
 
   // -- Fly-bump kamera + scroll otomatis ke About saat tombol Explore diklik --
   window.addEventListener('nexus:explore', () => {
@@ -108,10 +119,23 @@ function bootstrap() {
 
   function animate() {
     requestAnimationFrame(animate);
+
+    // FIX (5.6): kalau tab sedang tidak aktif/terlihat, skip kerja berat (render
+    // composer) — browser tetap memanggil rAF tapi kita tidak perlu ikut membakar
+    // GPU/CPU di background. State tetap diupdate ringan supaya begitu tab aktif
+    // lagi transisinya tidak "meloncat".
+    if (document.hidden) return;
+
     const elapsed = clock.getElapsedTime();
 
     // Scroll → camera turun cinematic, object mengecil & bergeser, lighting berubah.
-    rig.state.scrollY = -scrollProgress * 1.6;
+    // FIX (5.6): scrollY di-lerp (bukan di-snap langsung) menuju target dari
+    // ScrollTrigger. ScrollTrigger.scrub sudah men-smoothing progress-nya sendiri,
+    // tapi lerp tambahan ini meredam micro-jitter antar frame sehingga kamera
+    // benar-benar tidak pernah "teleport" walau progress berubah cepat (misal
+    // saat scroll-to terprogram lewat tombol Explore).
+    const targetScrollY = -scrollProgress * 1.6;
+    rig.state.scrollY = THREE.MathUtils.lerp(rig.state.scrollY, targetScrollY, 0.09);
     const targetScale = baseScale * (1 - scrollProgress * 0.4);
     heroGroup.scale.setScalar(THREE.MathUtils.lerp(heroGroup.scale.x, targetScale, 0.08));
     heroGroup.position.x = THREE.MathUtils.lerp(heroGroup.position.x, scrollProgress * 1.1, 0.08);

@@ -12,6 +12,41 @@ setup Three.js dasar (scene, camera, renderer, OrbitControls) dan
 konfigurasi GSAP awal. Belum ada object 3D atau animasi besar — struktur
 ini dirancang agar mudah dikembangkan pada prompt-prompt berikutnya.
 
+### Prompt 5.6 — Architecture Fix (transisi antar-section)
+
+Fokus prompt ini murni perbaikan struktur/arsitektur, **tanpa fitur baru**,
+supaya fondasi benar-benar stabil sebelum Prompt 6 (halaman Projects):
+
+- **Start Exploring** tidak lagi memicu "camera bump" cepat (0.22s) yang
+  terasa seperti sentakan. Diganti satu gerakan kamera halus, *ease-in-out*,
+  durasi ±1 detik (`cameraFlyBump` di `animation.js`), menyatu dengan smooth
+  scroll otomatis ke About. Hero tidak pernah dihilangkan — hanya mengecil,
+  naik sedikit (`y: -60`), dan opacity turun ke ~0.24 (tetap terlihat samar
+  di atas), diproses lewat scrub yang di-*lock* ke tinggi `.hero` itu sendiri
+  (bukan ke posisi `#about`) agar tidak meleset kalau tinggi section berubah.
+- **Bug "About kadang tidak muncul" — root cause ditemukan & diperbaiki**:
+  reveal animation lama membuat tween `.from()` di dalam `scrollTrigger`
+  yang langsung menerapkan `opacity:0` ke DOM saat dibuat, sebelum trigger-nya
+  aktif — kalau kalkulasi posisi meleset, section itu permanen tak terlihat.
+  Sekarang `initAboutReveal()` memakai **IntersectionObserver**: opacity:0
+  baru diterapkan tepat saat About benar-benar masuk viewport, plus safety-net
+  ganda (re-check setelah `load`, dan `clearProps` di akhir animasi) sehingga
+  section ini **tidak mungkin lagi stuck tersembunyi**.
+- **Scroll patah di HP**: Lenis sebelumnya hanya men-smoothing scroll roda
+  mouse (`smoothWheel`) — scroll sentuh sama sekali tidak di-smoothing.
+  Ditambahkan `syncTouch: true` sehingga scroll di layar sentuh ikut halus.
+- **Performance pass**: resize di-throttle lewat rAF (bukan per event mentah),
+  render loop di-skip saat tab tidak aktif (`document.hidden`), backdrop-filter
+  blur & box-shadow diperkecil signifikan di breakpoint mobile/tablet, dan
+  `overscroll-behavior` dimatikan untuk menghindari bounce native yang bentrok
+  dengan Lenis.
+- **UI polish** ringan tanpa mengubah desain utama: glow tombol & dekorasi
+  diperhalus (radius/opacity dikurangi sedikit), ditambah `:focus-visible`
+  untuk aksesibilitas keyboard.
+- Hierarki section didokumentasikan langsung di `index.html` (komentar) agar
+  Prompt 6 tahu persis di mana menyisipkan Projects & Contact tanpa merusak
+  struktur satu-halaman-scroll yang sudah ada.
+
 ### Catatan perbaikan (bug fix pass)
 
 Foundation ini sudah melalui satu putaran perbaikan untuk memastikan

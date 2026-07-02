@@ -67,11 +67,18 @@ a, button, .btn {
 
 .btn:hover {
   transform: translateY(-2px);
-  box-shadow: 0 12px 32px var(--accent-violet-soft);
+  box-shadow: 0 10px 22px -4px var(--accent-violet-soft); /* dipertajam & diperkecil radius (5.6): tetap glow, lebih ringan di GPU */
 }
 
 .btn:active {
   transform: translateY(0);
+}
+
+/* ---------- Focus-visible (aksesibilitas + micro-interaction keyboard) ---------- */
+.btn:focus-visible,
+.nexus-nav__logo:focus-visible {
+  outline: 2px solid var(--accent-cyan);
+  outline-offset: 3px;
 }
 
 /* ---------- Hormati preferensi reduced motion ---------- */
